@@ -42,7 +42,7 @@ variable "instance_type" {
 
 variable "instance_volume_size_gb" {
   description = "The root volume size, in gigabytes"
-  default     = "8"
+  default     = "10"
 }
 
 variable "iam_instance_profile" {}
@@ -62,7 +62,7 @@ variable "enable_monitoring" {
 }
 
 variable "ssh_user" {
-  default = "ubuntu"
+  default = "centos"
 }
 
 variable "enable_hourly_cron_updates" {
