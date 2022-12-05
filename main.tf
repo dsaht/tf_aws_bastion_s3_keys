@@ -58,27 +58,25 @@ data "template_file" "user_data" {
   }
 }
 
-resource "aws_launch_configuration" "bastion" {
-  name_prefix       = "${var.name}-"
-  image_id          = var.ami
-  instance_type     = var.instance_type
-  user_data         = data.template_file.user_data.rendered
-  enable_monitoring = var.enable_monitoring
+resource "aws_launch_template" "this" {
+  name_prefix   = "${var.name}-"
+  image_id      = var.ami
+  instance_type = var.instance_type
+  user_data     = base64encode(data.template_file.user_data.rendered)
+  key_name      = var.key_name
 
-  security_groups = compact(
-    concat(
-      [aws_security_group.bastion.id],
-      split(",", var.security_group_ids),
-    ),
-  )
-
-  root_block_device {
-    volume_size = var.instance_volume_size_gb
+  iam_instance_profile {
+    name = var.iam_instance_profile
   }
 
-  iam_instance_profile        = var.iam_instance_profile
-  associate_public_ip_address = var.associate_public_ip_address
-  key_name                    = var.key_name
+  monitoring {
+    enabled = true
+  }
+
+  network_interfaces {
+    associate_public_ip_address = var.associate_public_ip_address
+    security_groups = [aws_security_group.bastion.id]
+  }
 
   lifecycle {
     create_before_destroy = true
@@ -86,7 +84,7 @@ resource "aws_launch_configuration" "bastion" {
 }
 
 resource "aws_autoscaling_group" "bastion" {
-  name = var.apply_changes_immediately ? aws_launch_configuration.bastion.name : var.name
+  name = var.apply_changes_immediately ? aws_launch_template.this.name : var.name
 
   vpc_zone_identifier = var.subnet_ids
 
@@ -97,7 +95,10 @@ resource "aws_autoscaling_group" "bastion" {
   health_check_type         = "EC2"
   force_delete              = false
   wait_for_capacity_timeout = 0
-  launch_configuration      = aws_launch_configuration.bastion.name
+
+  launch_template {
+    id = aws_launch_template.this.id
+  }
 
   enabled_metrics = [
     "GroupMinSize",
@@ -126,4 +127,3 @@ resource "aws_autoscaling_group" "bastion" {
     create_before_destroy = true
   }
 }
-
